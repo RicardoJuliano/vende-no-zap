@@ -21,55 +21,64 @@ centralizados para mudar fácil quando as entrevistas voltarem:
 
 ## Itens do checklist
 
-- [ ] **Validação de entrada no servidor em todos os formulários.**
-  Zod, como já é padrão no projeto (`src/lib/validations/auth.ts`,
-  `waitlist.ts`). Novos schemas: contato (nome/telefone obrigatórios,
-  e-mail opcional), anotação (corpo não vazio, tamanho máximo), mudança de
-  estágio (só um dos 5 valores válidos, vindos do único arquivo de
-  configuração do funil — nunca uma string solta digitada de novo em cada
-  lugar).
+- [x] **Validação de entrada no servidor em todos os formulários.**
+  `src/lib/validations/pipeline.ts`: `quickContactSchema` (nome/telefone
+  obrigatórios), `contactNoteSchema` (corpo não vazio, máx. 2000
+  caracteres), `dealStageSchema` (só uma das 5 chaves de
+  `DEAL_STAGE_KEYS`, nunca uma string solta). As três server actions
+  (`src/app/dashboard/pipeline-actions.ts`) validam com esses schemas
+  antes de tocar no banco.
 
-- [ ] **Proteção contra XSS: anotações e nomes de contato são texto de
+- [x] **Proteção contra XSS: anotações e nomes de contato são texto de
   usuário.**
-  React/JSX escapa por padrão qualquer texto interpolado em `{}` — não é
-  preciso (e não deve) usar `dangerouslySetInnerHTML` em nenhum lugar que
-  renderize nome de contato, anotação ou título de deal. Verificação: grep
-  por `dangerouslySetInnerHTML` no diff da fase deve dar zero resultados.
+  `grep -rn "dangerouslySetInnerHTML" src/` → zero resultados. Todo texto
+  de usuário (nome, telefone, corpo da anotação) é renderizado via
+  interpolação JSX normal (`{contact.name}`, `{note.body}`), que o React
+  escapa por padrão.
 
-- [ ] **Queries sempre parametrizadas via SDK do Supabase.**
-  Todo acesso a dado passa pelo cliente JS do Supabase
-  (`.from("tabela").select/insert/update()`), nunca por SQL montado por
-  concatenação de string. As únicas queries SQL cruas do projeto vivem nas
-  migrações (`supabase/migrations/*.sql`), que são texto fixo escrito por
-  nós, não input de usuário.
+- [x] **Queries sempre parametrizadas via SDK do Supabase.**
+  `grep` por SQL cru fora de `supabase/migrations/` → zero resultados.
+  Toda leitura/escrita passa por `.from("tabela").select/insert/update()`
+  do cliente JS.
 
-- [ ] **Autorização em cada operação (mover card, editar contato, apagar
+- [x] **Autorização em cada operação (mover card, editar contato, apagar
   anotação).**
-  RLS já cobre isso no banco (nenhuma linha de outro `user_id` é
-  visível/editável, ponto final) — mas cada server action também confirma
-  a sessão (`supabase.auth.getUser()`) e inclui o `user_id` correto
-  explicitamente no insert/update, em vez de confiar apenas no RLS
-  silencioso. Duas camadas: uma que barra na aplicação com erro claro, uma
-  que barra no banco mesmo se a primeira falhar.
-  *(Apagar anotação não faz parte do escopo desta fase — só criar. Se
-  vier a existir, segue a mesma regra.)*
+  Cada server action confirma a sessão (`requireUser()`) e filtra
+  explicitamente por `user_id` — não confia só no RLS silencioso.
+  **Mas o teste de isolamento (ver abaixo) achou um buraco real que essa
+  descrição não previa:** as policies de `deals` e `conversations`
+  (desde a Fase 1) e a nova `contact_notes` conferiam `user_id`, mas não
+  se o `contact_id` referenciado pertencia ao mesmo dono. Um usuário B
+  conseguia criar `deal`/anotação apontando pro contato de A. Corrigido em
+  [`0004_fix_cross_owner_contact_id.sql`](../supabase/migrations/0004_fix_cross_owner_contact_id.sql)
+  com a função `user_owns_contact()`, reaplicada nas 3 tabelas. Reteste
+  confirmou: bloqueado (`403`), sem quebrar o fluxo legítimo.
 
-- [ ] **Teste de carga leve: 500 contatos numa conta, funil continua
+- [x] **Teste de carga leve: 500 contatos numa conta, funil continua
   fluido.**
-  Rodado contra o projeto Supabase real ao final da fase (não é
-  hipotético): insere 500 contatos + deals de teste numa conta descartável,
-  mede o tempo da query que o dashboard usa, depois apaga tudo. Resultado
-  registrado em `docs/relatorio-fase-2.md`.
+  Rodado em 09/09/2026 contra o projeto Supabase real: 500 contatos +
+  500 deals inseridos em lote (~900ms e ~450ms respectivamente — só o
+  tempo do insert em massa, não representativo do uso normal). As duas
+  queries que o dashboard roda de fato (`contacts` e `deals`, com os
+  mesmos `select`/`order` de `src/app/dashboard/page.tsx`) responderam em
+  **~250-290ms cada**, de forma consistente em 3 repetições, rodando em
+  paralelo no carregamento real da página. Dados de teste apagados ao
+  final (cascade via exclusão do usuário). Detalhes em
+  `docs/relatorio-fase-2.md`.
+  ⚠️ Isso mede a camada de banco/API, não o tempo de renderização de 500
+  cards arrastáveis no navegador — não foi medido em um browser real.
+  Se algum dia isso for um problema percebido de verdade, a saída é
+  paginação/virtualização por coluna, não otimização prematura agora.
 
 - [ ] **Confirmar que backup automático do Supabase está ativo.**
-  ⚠️ Só verificável no painel do Supabase (Project Settings → Backups),
-  não existe API disponível nesta sessão para checar programaticamente.
-  **Ponto de atenção real:** o plano gratuito do Supabase historicamente
-  **não inclui** backup diário automático nem PITR — isso costuma ser
-  recurso do plano Pro. Precisa ser confirmado manualmente por quem tem
-  acesso ao painel; se o Free plan não cobrir, a alternativa de baixo custo
-  é um export manual periódico (`pg_dump` via connection string) até migrar
-  de plano.
+  ⚠️ Segue pendente — só verificável no painel do Supabase (Project
+  Settings → Backups), não existe API disponível nesta sessão para checar
+  programaticamente. **Ponto de atenção real:** o plano gratuito do
+  Supabase historicamente **não inclui** backup diário automático nem
+  PITR — isso costuma ser recurso do plano Pro. Precisa ser confirmado
+  manualmente por quem tem acesso ao painel; se o Free plan não cobrir, a
+  alternativa de baixo custo é um export manual periódico (`pg_dump` via
+  connection string) até migrar de plano.
 
 ## Reforço específico desta fase: estágios centralizados
 
