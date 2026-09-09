@@ -25,7 +25,7 @@ const PROMESSAS = [
 
 export default function Home() {
   const whatsappLink = getWhatsAppLink(
-    "Oi! Vi a página do Vende no Zap e quero saber mais.",
+    "Oi! Vi o Vende no Zap e quero saber mais.",
   );
 
   return (

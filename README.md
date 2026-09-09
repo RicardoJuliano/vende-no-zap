@@ -4,11 +4,12 @@ CRM leve para quem vende pelo WhatsApp, com cobrança Pix embutida. Ver
 [`plano-vende-no-zap.md`](./plano-vende-no-zap.md) para o plano completo de
 construção, fase a fase.
 
-**Status:** Fase 1 (fundação técnica) concluída — login, banco e isolamento
-multi-tenant funcionando. Fase 0 (landing page + lista de espera) também no
-código; falta só você rodar as conversas reais com clientes (ver
-[`docs/fase-0-roteiro-entrevistas.md`](./docs/fase-0-roteiro-entrevistas.md)).
-Fase 2 (funil visual) é a próxima.
+**Status:** Fases 0, 1 e 2 concluídas — landing + lista de espera, login e
+banco com isolamento multi-tenant, e o funil kanban (contatos, anotações,
+lembretes de follow-up) funcionando e verificado contra o banco real. Falta
+só você rodar as conversas reais com clientes (ver
+[`docs/fase-0-roteiro-entrevistas.md`](./docs/fase-0-roteiro-entrevistas.md))
+— é o único critério que decide se o projeto segue pra Fase 3.
 
 ## Stack
 
@@ -16,6 +17,7 @@ Fase 2 (funil visual) é a próxima.
 - [Supabase](https://supabase.com) — Postgres, Auth (e-mail/senha + Google) e Row Level Security
 - [Zod](https://zod.dev) para validação de formulários
 - [Vitest](https://vitest.dev) + Testing Library para testes
+- [dnd-kit](https://dndkit.com) para o drag-and-drop do funil (com fallback por `<select>`, sem depender só de arrastar)
 
 ## Configurar o projeto
 
@@ -32,6 +34,11 @@ Fase 2 (funil visual) é a próxima.
      todas com Row Level Security.
    - [`supabase/migrations/0002_waitlist.sql`](./supabase/migrations/0002_waitlist.sql)
      — cria `waitlist_signups` (lista de espera da landing page da Fase 0).
+   - [`supabase/migrations/0003_contact_notes.sql`](./supabase/migrations/0003_contact_notes.sql)
+     — cria `contact_notes` (anotações por contato da Fase 2).
+   - [`supabase/migrations/0004_fix_cross_owner_contact_id.sql`](./supabase/migrations/0004_fix_cross_owner_contact_id.sql)
+     — corrige uma brecha de autorização achada testando a Fase 2 (ver
+     [`docs/relatorio-fase-2.md`](./docs/relatorio-fase-2.md)).
 
 ### 2. Variáveis de ambiente
 
@@ -62,6 +69,29 @@ Abra [http://localhost:3000](http://localhost:3000). Crie uma conta em
 | `npm run lint` | ESLint |
 | `npm run test` | Testes (Vitest, uma vez) |
 | `npm run test:watch` | Testes em modo watch |
+| `npm run seed:demo` | Popula a conta de demonstração (ver abaixo) |
+
+## Conta de demonstração
+
+Pra demonstrar o produto ao vivo (nas entrevistas de validação, por
+exemplo) sem depender de dado real: `npm run seed:demo` cria — ou
+reaproveita, se já existir — uma conta com login normal (e-mail/senha) e
+preenche o funil com ~15 contatos fictícios, deals em todos os 5 estágios,
+anotações com cara de uso real e pelo menos 2 lembretes de follow-up já
+"atrasados" o suficiente pra aparecer no dashboard.
+
+1. Defina `DEMO_ACCOUNT_EMAIL` e `DEMO_ACCOUNT_PASSWORD` no `.env.local`
+   (nunca a sua conta real — são credenciais só dessa conta de demo).
+2. Rode:
+   ```bash
+   npm run seed:demo
+   ```
+3. Entre em `/login` com essas credenciais.
+
+Rodar de novo **não duplica**: cada execução apaga os dados antigos da
+conta demo (contatos, deals e anotações) e insere o dataset de
+[`src/lib/demo-dataset.ts`](./src/lib/demo-dataset.ts) do zero — sempre no
+mesmo estado, pronto pra próxima demo.
 
 ## Segurança e multi-tenancy
 
@@ -69,10 +99,14 @@ Todo isolamento entre contas é garantido por **Row Level Security no
 Postgres** (veja a migração SQL), não por filtros na aplicação. Isso é
 proposital: mesmo que uma query no código esqueça um `where user_id = ...`,
 o banco recusa devolver linha de outro usuário. Veja os checklists completos
-em [`docs/fase-0-checklist-seguranca.md`](./docs/fase-0-checklist-seguranca.md)
-e [`docs/fase-1-checklist-seguranca.md`](./docs/fase-1-checklist-seguranca.md).
+em [`docs/fase-0-checklist-seguranca.md`](./docs/fase-0-checklist-seguranca.md),
+[`docs/fase-1-checklist-seguranca.md`](./docs/fase-1-checklist-seguranca.md) e
+[`docs/fase-2-checklist-seguranca.md`](./docs/fase-2-checklist-seguranca.md).
 
-## Próximos passos (Fase 2)
+## Próximos passos
 
-Funil visual (kanban), cadastro de contatos, anotações e lembretes de
-follow-up — ver a seção "Fase 2" do plano.
+O código está pronto para demonstração. O que falta é a Etapa 5 do roteiro
+([`vende-no-zap-proximos-passos.md`](./vende-no-zap-proximos-passos.md)):
+10+ conversas reais com donos de negócio. A Fase 3 (integração com
+WhatsApp) só começa se as entrevistas confirmarem que existe cliente
+pagante.

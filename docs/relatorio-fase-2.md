@@ -157,6 +157,20 @@ E confirmando que nada quebrou para o dono real:
 | Criar anotação | `201` — funciona |
 | Mover o próprio deal de estágio | Aplicado — estágio mudou de verdade |
 
+### Reconfirmação final (sessão de preparação pra demo)
+
+Rodado de novo, com um par novo de contas descartáveis, depois de todo o
+trabalho das Entregas 2 e 3 abaixo — pra garantir que nada regrediu:
+
+| Tentativa, autenticado como B | Resultado |
+|---|---|
+| Mover o card (deal) de A | `204` na chamada, mas o estágio de A **não mudou** (confirmado via `service_role`) |
+| Criar anotação no contato de A | `403` |
+| Apagar a anotação de A | `204` na chamada, mas a anotação **continua existindo** (confirmado via `service_role`) |
+| Ler os deals de A (base dos lembretes) | `[]` — vazio, logo também não há como ler lembretes de outra conta |
+
+Sem regressão. Contas de teste apagadas ao final.
+
 ---
 
 ## 5. Teste de carga (500 contatos)
@@ -185,7 +199,7 @@ pena otimizar agora sem sinal real de que é um problema.
 
 ## 6. Testes automatizados
 
-21 testes novos, suíte completa em **35/35**:
+Suíte completa em **44/44**:
 
 - `pipeline.test.ts` — as 5 chaves de estágio batem com o `check` do banco.
 - `reminders.test.ts` — cálculo de dias, quais estágios geram lembrete,
@@ -194,27 +208,127 @@ pena otimizar agora sem sinal real de que é um problema.
 - `pipeline-board.test.tsx` — renderiza uma coluna por estágio (lidas de
   `DEAL_STAGES`, não hardcoded no teste), mostra card no lugar certo,
   botão de novo contato presente, estado vazio nas colunas sem card.
+- `demo-dataset.test.ts` — o dataset da conta demo (Entrega 2, abaixo)
+  tem os 15 contatos, cobre os 5 estágios, valores em centavos dentro da
+  faixa realista, pelo menos 2 lembretes atrasados e é determinístico.
+- `config.test.ts` — o link do WhatsApp (Entrega 3, abaixo) monta certo
+  quando há número e retorna `null` quando não há.
 
 Lint limpo, build de produção sem erros.
 
 ---
 
-## 7. Commits desta fase
+## 7. Entrega 2 — Conta de demonstração
+
+`npm run seed:demo` ([`scripts/seed-demo.ts`](../scripts/seed-demo.ts))
+popula uma conta fixa com dado realista, pronta pra abrir na frente de um
+cliente sem depender de nada real ter sido cadastrado antes.
+
+**Como funciona:**
+1. Acha a conta demo por e-mail (via `profiles`, com a `service_role`
+   key) ou cria (via Admin API) se ainda não existir.
+2. Loga como a própria conta demo (senha normal, mesma API que a tela de
+   login usa) — os inserts abaixo passam pelas mesmas policies de RLS que
+   um usuário real enfrentaria, não um atalho de admin.
+3. Apaga os contatos que já existirem na conta (cascade cuida de deals e
+   anotações) e insere o dataset de
+   [`src/lib/demo-dataset.ts`](../src/lib/demo-dataset.ts) do zero.
+
+**Por que isso é idempotente:** rodar de novo não duplica porque cada
+execução começa apagando o estado anterior da conta demo — sempre termina
+no mesmo lugar, exatamente o que se quer antes de uma demonstração ao
+vivo. Testado rodando duas vezes seguidas: 15 contatos, 15 deals, 10
+anotações nas duas rodadas.
+
+**Credenciais:** `DEMO_ACCOUNT_EMAIL` / `DEMO_ACCOUNT_PASSWORD` no
+`.env.local` — nunca hardcoded no script nem commitado (documentado em
+`.env.example`). Passo a passo de uso no [`README.md`](../README.md#conta-de-demonstração).
+
+**Dataset:** 15 contatos com nomes comuns, telefones fictícios no formato
+`(38) 9XXXX-XXXX`, distribuídos nos 5 estágios do funil (4 em "Novo lead",
+3 em "Orçamento enviado", 3 em "Negociando", 3 em "Fechado", 2 em
+"Perdido"), valores entre R$80 e R$1.500, anotações com frase de uso real
+("Pediu orçamento de 2 bolos pra sábado", "Disse que ia pensar, cobrar
+quinta"). Dois deals nascem com `updated_at` propositalmente atrasado
+(`FOLLOWUP_THRESHOLD_DAYS + 1` e `+2` dias, não um número fixo — segue
+automaticamente se o limiar mudar) pra aparecer como lembrete assim que a
+conta é aberta.
+
+**Verificação visual real:** logado como a conta demo via navegador
+(Playwright headless, não só a API) depois de rodar a seed:
+
+- As 5 colunas aparecem com a contagem certa: Novo lead (4), Orçamento
+  enviado (3), Negociando (3), Fechado (3), Perdido (2) — bate exatamente
+  com o dataset.
+- A seção "Lembretes de follow-up" mostra as duas mensagens esperadas:
+  *"Faz 3 dias que você mudou o card de Fernanda Rocha e ele não
+  respondeu"* e *"Faz 4 dias que você mudou o card de Seu José (Padaria
+  do José) e ele não respondeu"*, com os dois cards destacados em âmbar.
+  Nenhum erro no console do navegador.
+- No mobile (viewport 390px), as colunas rolam horizontalmente — a
+  primeira tela mostra "Novo lead" completo, confirmando o comportamento
+  mobile-first pretendido.
+
+---
+
+## 8. Entrega 3 — WhatsApp na landing
+
+`WHATSAPP_NUMBER` deixou de ser uma constante vazia hardcoded em
+`src/lib/config.ts` e passou a vir de variável de ambiente
+(`process.env.WHATSAPP_NUMBER`) — trocar ou preencher o número pela
+primeira vez agora é configuração, não código. Continua sem o prefixo
+`NEXT_PUBLIC_`: só é lido no servidor (a landing é Server Component), não
+precisa ir pro bundle do navegador.
+
+Mensagem pré-preenchida ajustada para o texto pedido: *"Oi! Vi o Vende no
+Zap e quero saber mais."*
+
+`getWhatsAppLink()` ganhou um segundo parâmetro (`number`, com o valor do
+ambiente como default) só pra dar pra testar as duas situações sem mockar
+variável de ambiente: `config.test.ts` cobre número ausente (retorna
+`null`), link montado certo com número presente, e que a mensagem vem
+corretamente escapada na URL (um `&` ou `%` na mensagem não pode virar
+parâmetro extra por acidente).
+
+Nada além disso mudou — o botão continua invisível até `WHATSAPP_NUMBER`
+ser preenchido, mesmo comportamento de antes.
+
+---
+
+## 9. Commits desta fase
 
 | Commit | Resumo |
 |---|---|
 | `c93ae3b` | Checklist de segurança da Fase 2 (antes do primeiro commit de código) |
 | `01ea6e1` | Funil kanban, contato rápido, anotações e lembretes |
 | `68436a1` | Corrige brecha de autorização: contact_id de outro dono aceito |
+| `f3da186` | Fecha checklist e relatório da Fase 2 |
+| *(a seguir)* | Conta de demonstração (`npm run seed:demo`) + WhatsApp via env var |
 
 ---
 
-## 8. O que fica pendente
+## 10. O que fica pendente
 
+- [ ] **Preencher `WHATSAPP_NUMBER`** quando tiver o número comercial —
+  hoje vazio de propósito, o botão continua escondido até lá.
 - [ ] **Confirmar backup automático do Supabase** — só verificável no
   painel, plano Free pode não incluir (ver checklist).
 - [ ] **Usar o funil por uma semana com contatos reais** antes de mostrar a
-  qualquer cliente (Etapa 6 do roteiro de execução).
+  qualquer cliente (Etapa 6 do roteiro de execução) — a conta demo
+  (Entrega 2) cobre a demonstração, não substitui isso.
 - [ ] **Etapa 5 continua em paralelo** — as 10+ entrevistas de validação.
   O critério de negócio (5+ "eu pagaria" com valor concreto) segue
-  valendo independente do código estar pronto.
+  valendo independente do código estar pronto ou da demo funcionar bem.
+
+## 11. Pronto pra demonstração ao vivo
+
+Este era o objetivo da sessão. Checklist de "está pronto pra abrir no
+celular na frente de um cliente":
+
+- [x] Funil, contatos, anotações e lembretes funcionando de ponta a ponta
+- [x] Mobile-first — testado em viewport de celular (390px)
+- [x] Conta de demonstração com dado realista, um comando (`npm run
+      seed:demo`) pra resetar antes de cada demo
+- [x] Isolamento entre contas testado e retestado, achado real corrigido
+- [x] Botão de WhatsApp pronto pra ligar assim que o número existir
+- [x] CI verde, 44 testes, lint e build sem erros
