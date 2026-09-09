@@ -33,21 +33,25 @@ Status de cada item do [plano](../plano-vende-no-zap.md) para a Fase 1.
   ambiente opcional em `.env.example`) para ganhar uma segunda camada de
   defesa contra força bruta distribuída.
 
-- [ ] **Teste manual: criar dois usuários e tentar acessar dados de um
+- [x] **Teste manual: criar dois usuários e tentar acessar dados de um
   logado como o outro, direto pela API.**
-  Requer um projeto Supabase real (ver `README.md`). Roteiro para rodar
-  assim que o projeto estiver no ar:
-  1. Criar usuário A, logar, criar 1 registro em `contacts`.
-  2. Copiar o `access_token` da sessão de A (DevTools → Application →
-     Cookies, ou `supabase.auth.getSession()` no console).
-  3. Criar usuário B, logar normalmente pela aplicação — o dashboard
-     deve mostrar `0` contatos (prova visual de isolamento).
-  4. Com o token de A ainda válido, chamar a REST API do Supabase
-     (`GET {SUPABASE_URL}/rest/v1/contacts` com o header
-     `Authorization: Bearer <token de B>` e o `apikey` anônimo) logado
-     como B — a resposta deve vir vazia mesmo que A tenha registros.
-  5. Repetir tentando um `POST`/`PATCH` no `id` de um contato de A
-     autenticado como B — deve retornar vazio/erro, nunca alterar o dado.
+  Rodado em 09/09/2026 contra o projeto Supabase real, via API (dois
+  usuários de teste criados pela Admin API, autenticados via
+  `grant_type=password`, dados e contas apagados ao final — nada ficou
+  no banco). Resultado das 4 tentativas, autenticado como usuário B:
+
+  | Tentativa | Resultado |
+  |---|---|
+  | `GET /rest/v1/contacts` (ler contato da conta A) | `[]` — vazio |
+  | `PATCH /rest/v1/deals?id=eq.<id de A>` (mudar estágio) | `[]` — 0 linhas afetadas, estágio de A intacto |
+  | `DELETE /rest/v1/contacts?id=eq.<id de A>` | `[]` — 0 linhas afetadas, contato de A intacto |
+  | `GET /rest/v1/waitlist_signups` (autenticado, não é service_role) | `[]` — vazio |
+
+  RLS aprovado nas 4 frentes. Também confirmado nesta mesma sessão:
+  insert anônimo na waitlist funciona (201) e a leitura anônima
+  imediatamente depois continua vazia — o modelo "caixa de correio"
+  descrito no checklist da Fase 0 se comporta como esperado na prática,
+  não só na teoria da política SQL.
 
 ## Observações de arquitetura
 
