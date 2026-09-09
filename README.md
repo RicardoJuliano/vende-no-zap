@@ -5,7 +5,10 @@ CRM leve para quem vende pelo WhatsApp, com cobrança Pix embutida. Ver
 construção, fase a fase.
 
 **Status:** Fase 1 (fundação técnica) concluída — login, banco e isolamento
-multi-tenant funcionando. Fase 2 (funil visual) é a próxima.
+multi-tenant funcionando. Fase 0 (landing page + lista de espera) também no
+código; falta só você rodar as conversas reais com clientes (ver
+[`docs/fase-0-roteiro-entrevistas.md`](./docs/fase-0-roteiro-entrevistas.md)).
+Fase 2 (funil visual) é a próxima.
 
 ## Stack
 
@@ -23,10 +26,12 @@ multi-tenant funcionando. Fase 2 (funil visual) é a próxima.
 3. Em **Authentication → Providers**, ative **Google** se for usar login social
    (precisa de um Client ID/Secret OAuth do [Google Cloud Console](https://console.cloud.google.com/)
    com a redirect URI que o Supabase mostra na tela).
-4. Em **SQL Editor**, cole e rode o conteúdo de
-   [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql).
-   Isso cria as tabelas (`profiles`, `contacts`, `conversations`, `deals`,
-   `subscriptions`) e ativa o Row Level Security em todas.
+4. Em **SQL Editor**, cole e rode, nesta ordem, o conteúdo de:
+   - [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql)
+     — cria `profiles`, `contacts`, `conversations`, `deals`, `subscriptions`,
+     todas com Row Level Security.
+   - [`supabase/migrations/0002_waitlist.sql`](./supabase/migrations/0002_waitlist.sql)
+     — cria `waitlist_signups` (lista de espera da landing page da Fase 0).
 
 ### 2. Variáveis de ambiente
 
@@ -63,8 +68,9 @@ Abra [http://localhost:3000](http://localhost:3000). Crie uma conta em
 Todo isolamento entre contas é garantido por **Row Level Security no
 Postgres** (veja a migração SQL), não por filtros na aplicação. Isso é
 proposital: mesmo que uma query no código esqueça um `where user_id = ...`,
-o banco recusa devolver linha de outro usuário. Veja o checklist completo em
-[`docs/fase-1-checklist-seguranca.md`](./docs/fase-1-checklist-seguranca.md).
+o banco recusa devolver linha de outro usuário. Veja os checklists completos
+em [`docs/fase-0-checklist-seguranca.md`](./docs/fase-0-checklist-seguranca.md)
+e [`docs/fase-1-checklist-seguranca.md`](./docs/fase-1-checklist-seguranca.md).
 
 ## Próximos passos (Fase 2)
 
