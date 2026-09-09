@@ -303,7 +303,7 @@ ser preenchido, mesmo comportamento de antes.
 | `01ea6e1` | Funil kanban, contato rápido, anotações e lembretes |
 | `68436a1` | Corrige brecha de autorização: contact_id de outro dono aceito |
 | `f3da186` | Fecha checklist e relatório da Fase 2 |
-| *(a seguir)* | Conta de demonstração (`npm run seed:demo`) + WhatsApp via env var |
+| `e7aef83` | Entrega 2 e 3: conta de demonstração + WhatsApp via env var |
 
 ---
 
