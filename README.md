@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vende no Zap
 
-## Getting Started
+CRM leve para quem vende pelo WhatsApp, com cobrança Pix embutida. Ver
+[`plano-vende-no-zap.md`](./plano-vende-no-zap.md) para o plano completo de
+construção, fase a fase.
 
-First, run the development server:
+**Status:** Fase 1 (fundação técnica) concluída — login, banco e isolamento
+multi-tenant funcionando. Fase 2 (funil visual) é a próxima.
+
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router, TypeScript) + [Tailwind CSS](https://tailwindcss.com)
+- [Supabase](https://supabase.com) — Postgres, Auth (e-mail/senha + Google) e Row Level Security
+- [Zod](https://zod.dev) para validação de formulários
+- [Vitest](https://vitest.dev) + Testing Library para testes
+
+## Configurar o projeto
+
+### 1. Criar o projeto no Supabase
+
+1. Crie uma conta e um projeto em [supabase.com](https://supabase.com) (plano gratuito serve).
+2. Em **Project Settings → API**, copie a **Project URL** e a **anon public key**.
+3. Em **Authentication → Providers**, ative **Google** se for usar login social
+   (precisa de um Client ID/Secret OAuth do [Google Cloud Console](https://console.cloud.google.com/)
+   com a redirect URI que o Supabase mostra na tela).
+4. Em **SQL Editor**, cole e rode o conteúdo de
+   [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql).
+   Isso cria as tabelas (`profiles`, `contacts`, `conversations`, `deals`,
+   `subscriptions`) e ativa o Row Level Security em todas.
+
+### 2. Variáveis de ambiente
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` com os
+valores copiados acima.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Rodar localmente
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Abra [http://localhost:3000](http://localhost:3000). Crie uma conta em
+`/signup` — se a confirmação de e-mail estiver ativada no projeto Supabase
+(padrão), confira sua caixa de entrada antes de conseguir logar.
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Sobe o servidor de desenvolvimento |
+| `npm run build` | Build de produção (roda o typecheck do TS junto) |
+| `npm run lint` | ESLint |
+| `npm run test` | Testes (Vitest, uma vez) |
+| `npm run test:watch` | Testes em modo watch |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Segurança e multi-tenancy
 
-## Deploy on Vercel
+Todo isolamento entre contas é garantido por **Row Level Security no
+Postgres** (veja a migração SQL), não por filtros na aplicação. Isso é
+proposital: mesmo que uma query no código esqueça um `where user_id = ...`,
+o banco recusa devolver linha de outro usuário. Veja o checklist completo em
+[`docs/fase-1-checklist-seguranca.md`](./docs/fase-1-checklist-seguranca.md).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Próximos passos (Fase 2)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Funil visual (kanban), cadastro de contatos, anotações e lembretes de
+follow-up — ver a seção "Fase 2" do plano.

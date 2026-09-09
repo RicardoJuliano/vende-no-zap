@@ -15,7 +15,7 @@ const AUTH_PAGES = ["/login", "/signup"];
  * quem garante isolamento entre contas é o RLS no Postgres. Mesmo que
  * este middleware tivesse um bug, nenhum dado de outro usuário vazaria.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
