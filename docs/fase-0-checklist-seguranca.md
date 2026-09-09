@@ -35,6 +35,19 @@ Supabase em vez de duas stacks separadas:
   pessoa preenchendo o formulário duas vezes não vira dois leads.
 - Honeypot anti-spam (campo `website`, escondido via CSS): reduz
   cadastro automatizado por bot sem exigir captcha.
+- **Rate limit por IP** ([`src/lib/rate-limit.ts`](../src/lib/rate-limit.ts)):
+  no máximo 5 envios por hora por IP. Usa Upstash Redis quando
+  `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` estão configurados
+  (funciona certo com várias instâncias serverless na Vercel); sem essas
+  variáveis, cai num fallback em memória — protege só uma instância por
+  vez, aceitável em dev local e enquanto o tráfego é baixo, mas configure
+  o Upstash antes de divulgar a landing em escala.
+- **Resposta uniforme no dedupe**: telefone novo, telefone repetido e
+  honeypot de bot devolvem exatamente a mesma mensagem de sucesso. Antes,
+  telefone repetido tinha um texto diferente — dava pra usar o formulário
+  para descobrir se um número específico já estava cadastrado (enumeração
+  de dados de terceiro). Corrigido em
+  [`src/app/actions/waitlist.ts`](../src/app/actions/waitlist.ts).
 - Botão de contato direto no WhatsApp só aparece quando
   `WHATSAPP_NUMBER` (em [`src/lib/config.ts`](../src/lib/config.ts)) for
   preenchido — está em branco de propósito por enquanto.
