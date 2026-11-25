@@ -1,15 +1,18 @@
 # Vende no Zap
 
-CRM leve para quem vende pelo WhatsApp, com cobrança Pix embutida. Ver
+CRM leve para quem vende pelo WhatsApp: funil de vendas em kanban, contatos,
+anotações e lembretes de follow-up. A cobrança por Pix e a integração com o
+WhatsApp estão no plano, mas **ainda não foram implementadas**. Ver
 [`plano-vende-no-zap.md`](./plano-vende-no-zap.md) para o plano completo de
 construção, fase a fase.
 
-**Status:** Fases 0, 1 e 2 concluídas — landing + lista de espera, login e
+**Status:** Fases 0, 1 e 2 concluídas: landing com lista de espera, login e
 banco com isolamento multi-tenant, e o funil kanban (contatos, anotações,
-lembretes de follow-up) funcionando e verificado contra o banco real. Falta
-só você rodar as conversas reais com clientes (ver
-[`docs/fase-0-roteiro-entrevistas.md`](./docs/fase-0-roteiro-entrevistas.md))
-— é o único critério que decide se o projeto segue pra Fase 3.
+lembretes de follow-up) funcionando e verificado contra o banco real. A
+próxima etapa é validar o problema em conversas reais com donos de negócio
+(roteiro em
+[`docs/fase-0-roteiro-entrevistas.md`](./docs/fase-0-roteiro-entrevistas.md)).
+O resultado dessas conversas decide se o projeto segue para a Fase 3.
 
 ## Stack
 
@@ -107,6 +110,6 @@ em [`docs/fase-0-checklist-seguranca.md`](./docs/fase-0-checklist-seguranca.md),
 
 O código está pronto para demonstração. O que falta é a Etapa 5 do roteiro
 ([`vende-no-zap-proximos-passos.md`](./vende-no-zap-proximos-passos.md)):
-10+ conversas reais com donos de negócio. A Fase 3 (integração com
-WhatsApp) só começa se as entrevistas confirmarem que existe cliente
+10 ou mais conversas reais com donos de negócio. A Fase 3 (integração com
+WhatsApp) só começa se essas conversas confirmarem que existe cliente
 pagante.
